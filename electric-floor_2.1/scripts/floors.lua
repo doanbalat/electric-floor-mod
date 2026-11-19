@@ -65,16 +65,21 @@ floors.setting = setting
 --- Queue the chunk that contains this position.
 --- @param surface LuaSurface
 --- @param position MapPosition
-function floors.mark(surface, position)
+--- @param rewire boolean? re-wire every proxy of the chunk, not just new ones
+function floors.mark(surface, position, rewire)
 	local s = state()
 
 	local cx = math.floor(position.x / CHUNK)
 	local cy = math.floor(position.y / CHUNK)
 	local key = surface.name .. "|" .. cx .. "|" .. cy
 
-	if s.queue[key] then return end
+	local queued = s.queue[key]
+	if queued then
+		if rewire then queued.rewire = true end
+		return
+	end
 
-	s.queue[key] = {surface = surface.name, cx = cx, cy = cy}
+	s.queue[key] = {surface = surface.name, cx = cx, cy = cy, rewire = rewire}
 	s.count = s.count + 1
 	s.pending[s.count] = key
 end
@@ -85,27 +90,28 @@ local function join_network(surface, proxy)
 	local radius = proxies.radius_from_name(proxy.name)
 	local position = proxy.position
 
-	-- A touching neighbour can be up to radius + MAX_RADIUS away, because a
-	-- small square may sit next to a whole-chunk one.
-	local reach = radius + constants.MAX_RADIUS + 1
+	-- One search per proxy size, reaching exactly as far as a proxy of that
+	-- size can be and still touch. A single search wide enough for the largest
+	-- size returned every small proxy around - hundreds on a half-built floor -
+	-- only to discard all but the few that touch.
+	for i = 1, #constants.SIZES do
+		local other_radius = constants.SIZES[i] / 2
+		local reach = radius + other_radius + 0.01
 
-	local candidates = surface.find_entities_filtered {
-		name = constants.PROXY_NAMES,
-		area = {
-			{position.x - reach, position.y - reach},
-			{position.x + reach, position.y + reach},
-		},
-	}
+		local candidates = surface.find_entities_filtered {
+			name = constants.PROXY_NAMES[i],
+			area = {
+				{position.x - reach, position.y - reach},
+				{position.x + reach, position.y + reach},
+			},
+		}
 
-	for i = 1, #candidates do
-		local other = candidates[i]
+		for j = 1, #candidates do
+			local other = candidates[j]
 
-		if
-			other.valid
-			and other ~= proxy
-			and proxies.touch(position, radius, other.position, proxies.radius_from_name(other.name))
-		then
-			proxies.connect(proxy, other)
+			if other.valid and other ~= proxy and proxies.touch(position, radius, other.position, other_radius) then
+				proxies.connect(proxy, other)
+			end
 		end
 	end
 
@@ -114,8 +120,9 @@ local function join_network(surface, proxy)
 	-- to power part of the floor, so the search reaches out by the largest
 	-- supply radius any pole prototype has (a substation reaches 9 tiles out).
 	local margin = constants.max_pole_supply_radius() + 1
+	-- Real poles only, by name: searching by type also returned every proxy.
 	local poles = surface.find_entities_filtered {
-		type = "electric-pole",
+		name = constants.real_pole_names(),
 		area = {
 			{position.x - radius - margin, position.y - radius - margin},
 			{position.x + radius + margin, position.y + radius + margin},
@@ -171,6 +178,11 @@ local function rebuild_chunk(job)
 	for _, entity in pairs(obsolete) do
 		if entity.valid then entity.destroy() end
 	end
+
+	-- Only new proxies need wiring: a kept proxy kept its wires, and whatever it
+	-- lost to a destroyed neighbour comes back when the replacement joins it.
+	-- Re-wiring every kept proxy on every edit was most of the mod's cost.
+	if not job.rewire then live = {} end
 
 	for i = 1, #missing do
 		local wanted = missing[i]
@@ -228,7 +240,7 @@ function floors.pass()
 	local s = storage.electric_floor
 	if not s or s.head > s.count then return end
 
-	drain(setting(constants.SETTING_BUDGET, 8))
+	drain(setting(constants.SETTING_BUDGET, 1))
 end
 
 --- Drains the whole queue at once. Much more expensive than a regular pass, so
@@ -320,13 +332,13 @@ end
 function floors.rescan()
 	for _, surface in pairs(game.surfaces) do
 		for _, tile in ipairs(surface.find_tiles_filtered {name = TILE_NAME}) do
-			floors.mark(surface, tile.position)
+			floors.mark(surface, tile.position, true)
 		end
 	end
 end
 
 local function schedule()
-	script.on_nth_tick(setting(constants.SETTING_INTERVAL, 15), floors.pass)
+	script.on_nth_tick(setting(constants.SETTING_INTERVAL, 1), floors.pass)
 end
 
 function floors.register()

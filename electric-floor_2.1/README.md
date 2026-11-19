@@ -48,7 +48,7 @@ disables the reach check, because the floor itself is the conductor.
 * Placing a pole on an already conducting floor joins it **in the same tick**
   (the wire is made directly in the entity-built event).
 * Laying or removing floor queues the affected chunk; the next update pass
-  rewires it within `pass-interval` ticks (0.25 s by default).
+  rewires it within `pass-interval` ticks (1 tick by default).
 * If a pole is placed faster than the game initialises it - e.g. pulling a pole
   out and putting it straight back - the immediate attempt finds nothing to
   connect to, so the pole's chunk is queued as well and repaired by the next
@@ -60,8 +60,8 @@ Both are runtime-global and can be changed on an existing save:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `pass-interval` | 15 | Ticks between update passes. Higher = cheaper. |
-| `chunks-per-pass` | 8 | Chunks wired up per pass. Lower = smoother. |
+| `pass-interval` | 1 | Ticks between update passes. Higher = cheaper. |
+| `chunks-per-pass` | 1 | Chunks wired up per pass. Lower = smoother. |
 
 ## Remote interface
 
