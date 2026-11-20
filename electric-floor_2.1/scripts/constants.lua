@@ -1,13 +1,12 @@
--- Shared constants for the runtime side of the mod.
+-- Shared names, sizes, and settings for the floor network.
 
 local constants = {}
 
 constants.TILE_NAME = "electric-floor"
 constants.PROXY_PREFIX = "electric-floor-proxy-"
 
--- Square edge lengths (in tiles) a proxy is sized for. The proxy's supply
--- radius is half of its square, and the quadtree covering only produces these
--- sizes, so one prototype per entry is enough.
+-- Hidden poles cover squares of 1, 2, 4, 8, 16, or 32 tiles per side.
+-- Each pole sits at the center of its square, so its supply radius is half the side length.
 constants.SIZES = {1, 2, 4, 8, 16, 32}
 
 constants.CHUNK_SIZE = 32
@@ -23,12 +22,7 @@ constants.POLE_COPPER = defines.wire_connector_id.pole_copper
 constants.SETTING_INTERVAL = "electric-floor-pass-interval"
 constants.SETTING_BUDGET = "electric-floor-chunks-per-pass"
 
-------------------------------------------------------------------------------
--- pole supply areas
---
--- `supply_area_distance` cannot be read from a prototype at runtime, so
--- data-final-fixes.lua collects it into a mod-data prototype.
-------------------------------------------------------------------------------
+-- Read each pole’s supply radius from the table collected in data-final-fixes.lua.
 
 local pole_supply_by_name
 
@@ -41,16 +35,16 @@ local function pole_supply()
 	return pole_supply_by_name
 end
 
---- Half the side of a pole's supply square: the distance within which it powers
---- whatever stands next to it.
+--- Return how far this type of pole supplies power in each direction.
+--- Return zero if the pole is missing from the supply table.
 --- @param name string
 --- @return number
 function constants.pole_supply_radius(name)
 	return pole_supply()[name] or 0
 end
 
---- Largest supply radius of any pole prototype. Used as the search margin when
---- looking for poles that can reach a floor square.
+--- Use the largest supply radius to decide how far outside a chunk to look for electric poles.
+--- Use Factorio’s value when available, with the recorded prototype data as a fallback.
 --- @return number
 function constants.max_pole_supply_radius()
 	local from_game = prototypes.max_electric_pole_supply_area_distance

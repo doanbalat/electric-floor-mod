@@ -1,8 +1,5 @@
--- Electric Floor
--- A standalone extraction of the "concrete grid" floor from Dectorio.
---
--- This file is the mod entry point: Factorio only loads prototypes that are
--- required from a data.lua / data-updates.lua / data-final-fixes.lua.
+-- Register the electric concrete tile, its item and recipe, its unlock, and the hidden poles that carry power.
+-- The grid texture comes from Dectorio.
 
 require("prototypes.tile.electric-floor")
 require("prototypes.item.electric-floor")
