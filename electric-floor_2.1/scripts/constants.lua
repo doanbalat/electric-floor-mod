@@ -43,6 +43,27 @@ function constants.pole_supply_radius(name)
 	return pole_supply()[name] or 0
 end
 
+
+--- Every electric pole prototype except our proxies, so a search for real
+--- poles does not also return the many proxies around them.
+--- @return string[]
+local real_pole_names
+
+function constants.real_pole_names()
+	if not real_pole_names then
+		real_pole_names = {}
+		for name in pairs(prototypes.get_entity_filtered {{filter = "type", type = "electric-pole"}}) do
+			if name:sub(1, #constants.PROXY_PREFIX) ~= constants.PROXY_PREFIX then
+				real_pole_names[#real_pole_names + 1] = name
+			end
+		end
+	end
+
+	return real_pole_names
+end
+
+--- Largest supply radius of any pole prototype. Used as the search margin when
+--- looking for poles that can reach a floor square.
 --- Use the largest supply radius to decide how far outside a chunk to look for electric poles.
 --- Use Factorio’s value when available, with the recorded prototype data as a fallback.
 --- @return number
