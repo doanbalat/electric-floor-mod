@@ -1,4 +1,4 @@
--- Helpers around the hidden proxy entities.
+-- Helpers for identifying hidden poles and connecting them to the floor network.
 
 local constants = require("scripts.constants")
 
@@ -6,22 +6,22 @@ local proxies = {}
 
 local PREFIX_LENGTH = #constants.PROXY_PREFIX
 
---- Is this prototype name one of our hidden proxies?
+--- Check whether this name belongs to one of the floor’s hidden poles.
 --- @param name string?
 --- @return boolean
 function proxies.is_proxy(name)
 	return name ~= nil and name:sub(1, PREFIX_LENGTH) == constants.PROXY_PREFIX
 end
 
---- Supply radius of a proxy, read straight from its name.
+--- Read the hidden pole’s square size from its name and divide by two to get its supply radius.
 --- @param name string
 --- @return number
 function proxies.radius_from_name(name)
 	return tonumber(name:sub(PREFIX_LENGTH + 1)) / 2
 end
 
---- Stable string key for a proxy at a position. Positions are either whole or
---- half tiles, so the doubled value is always an exact integer.
+--- Identify a hidden pole by its prototype name and position so a rebuild can keep it if it still fits.
+--- The pole can sit on a whole or half tile coordinate, so doubling the coordinates gives whole numbers.
 --- @return string
 function proxies.position_key(name, x, y)
 	return name .. "|" .. math.floor(x * 2 + 0.5) .. "|" .. math.floor(y * 2 + 0.5)
@@ -33,23 +33,16 @@ function proxies.entity_key(entity)
 	return proxies.position_key(entity.name, entity.position.x, entity.position.y)
 end
 
---- Do two supply squares touch (edges or corners included)? Used both for
---- proxy-to-proxy and for pole-to-proxy, since a real pole's supply area is a
---- square in exactly the same way.
+--- Check whether two squares of power coverage overlap or meet along an edge or at a corner.
+--- The same check works for the supply area of a regular electric pole and the square covered by a hidden pole.
 --- @return boolean
 function proxies.touch(a_position, a_radius, b_position, b_radius)
 	local reach = a_radius + b_radius + 0.001
 	return math.abs(a_position.x - b_position.x) <= reach and math.abs(a_position.y - b_position.y) <= reach
 end
 
---- Wires two entities together.
---- `reach_check = false` skips the wire reach check, which is what lets the
---- floor conduct over any distance. Returns whether they are connected.
----
---- `or_create = true` is required: while `on_built_entity` runs, an entity the
---- game has just built has not been given its wire connectors yet, so asking
---- for an existing one returns nil and the connection would be silently
---- dropped (this is why only the chunk rebuild could ever join a fresh pole).
+--- Find or create a copper wire connector on each pole and keep an existing connection if they already share one.
+--- For a new connection, skip the normal wire reach check because the caller already checked that the power coverage meets.
 --- @param a LuaEntity
 --- @param b LuaEntity
 --- @return boolean
@@ -63,8 +56,8 @@ function proxies.connect(a, b)
 	return connector_a.connect_to(connector_b, false)
 end
 
---- Can this pole power - and therefore feed or draw from - any part of the
---- floor? Used to decide whether a freshly built pole is worth re-checking.
+--- Check for any electric concrete in the pole’s supply area.
+--- If the supply radius is unknown or zero, check out to the largest hidden pole radius instead.
 --- @param pole LuaEntity
 --- @return boolean
 function proxies.can_reach_floor(pole)
@@ -82,24 +75,15 @@ function proxies.can_reach_floor(pole)
 	} > 0
 end
 
---- Half the side of a real pole's supply square. This is the distance within
---- which the pole powers whatever stands next to it, so it is also the distance
---- within which it can feed or draw from the floor.
+--- Look up the supply radius for this regular electric pole.
 --- @param pole LuaEntity
 --- @return number
 function proxies.supply_radius(pole)
 	return constants.pole_supply_radius(pole.name)
 end
 
---- Joins a real electric pole to the floor network when their supply areas
---- touch - that is, whenever the pole can power part of the floor, it powers
---- the whole floor (and takes part in its network).
----
---- Requiring the pole to physically stand on a floor tile would be too strict:
---- a substation's supply area reaches 9 tiles out, so a substation standing next
---- to the floor already powers the tiles at its edge and therefore has to be
---- part of the same network.
----
+--- Connect a regular electric pole to all nearby hidden poles whose supply areas meet its own.
+--- A pole can stand beside the concrete and still join the network when its supply area reaches the floor.
 --- @param surface LuaSurface
 --- @param pole LuaEntity
 --- @return number amount of proxies connected

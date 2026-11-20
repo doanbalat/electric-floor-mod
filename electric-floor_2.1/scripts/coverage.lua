@@ -1,16 +1,7 @@
--- Chunk covering: "which tiles of this chunk are electric floor" -> "the fewest
--- proxies that cover exactly those tiles".
---
--- How it works:
---   1. Read the floor tiles of one 32x32 chunk.
---   2. Build a 2D prefix sum over a 32x32 boolean grid (no bit library needed).
---      "Is this sub-square completely floor?" is then four table lookups, which
---      makes the covering below almost free.
---   3. Quadtree-subdivide the chunk: a fully covered square becomes one proxy,
---      anything else splits into four halves until size 1.
---
--- The scratch buffers are reused between calls on purpose; this code runs once
--- per dirty chunk and must not allocate.
+-- Find the squares of electric concrete in a 32 × 32 chunk.
+-- Start with the full chunk, skip empty squares, and give each fully paved square one hidden pole.
+-- For a partly paved square, split it into four smaller squares and check each one the same way.
+-- The count table tells us how many electric concrete tiles are in any square with four lookups.
 
 local constants = require("scripts.constants")
 
@@ -31,9 +22,10 @@ local function square_sum(x, y, size)
 end
 
 local function subdivide(x, y, size, out, x0, y0)
-	if square_sum(x, y, size) == size * size then
-		-- A pole placed in the middle of this square has a supply area of
-		-- exactly `size`, so radius = size / 2 covers the square precisely.
+	local count = square_sum(x, y, size)
+	if count == 0 then return end
+	if count == size * size then
+		-- Place the hidden pole in the middle so its supply area covers this square exactly.
 		out[#out + 1] = {
 			name = constants.PROXY_PREFIX .. size,
 			x = x0 + x - 1 + size / 2,
@@ -51,7 +43,7 @@ local function subdivide(x, y, size, out, x0, y0)
 	subdivide(x + half, y + half, half, out, x0, y0)
 end
 
---- Returns the proxies that should exist for the floor tiles of one chunk.
+--- Return the hidden poles needed to cover the electric concrete in this chunk.
 --- @param surface LuaSurface
 --- @param x0 number left edge of the chunk, in tiles
 --- @param y0 number top edge of the chunk, in tiles
@@ -78,8 +70,7 @@ function coverage.cover_chunk(surface, x0, y0)
 
 	if not found then return {} end
 
-	-- Rows 0 and columns 0 of the prefix table are all zero, and every other
-	-- entry is written below, so the table never needs clearing.
+	-- Write the zero border first, then overwrite the rest of the count table for this chunk.
 	for x = 0, CHUNK do prefix[x] = 0 end
 
 	for y = 1, CHUNK do

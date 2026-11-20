@@ -1,10 +1,5 @@
--- The runtime prototype API does not expose `supply_area_distance` for electric
--- poles: reading an unknown key from a LuaEntityPrototype raises an error
--- instead of returning nil. The values are therefore collected here and handed
--- to the control stage through a mod-data prototype.
---
--- This runs in data-final-fixes so that poles added by every other mod are
--- included.
+-- Record how far every electric pole reaches so the floor can find nearby poles once a save is running.
+-- This runs late in the data stage to include electric poles added by other mods.
 
 local by_name = {}
 local largest = 0

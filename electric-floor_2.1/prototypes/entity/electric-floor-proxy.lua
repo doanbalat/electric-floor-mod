@@ -1,25 +1,12 @@
--- Hidden power "proxies".
---
--- A tile can never take part in the electric network: only entities can. The
--- way to make a floor conductive is therefore to place an invisible
--- electric pole on top of it. These prototypes are that pole.
---
--- Design notes (all of these keep the proxies free):
---   * `hidden` + `not-on-map` + `not-blueprintable` + `not-deconstructable`:
---     the player never sees, selects, blueprints or deconstructs them.
---   * empty `collision_mask`: the pole shares its cell with the machine it
---     powers, so it can sit under any entity.
---   * `maximum_wire_distance = 0`: the game will never wire these on its own
---     (nor let the player drag a wire onto them). All connections are made by
---     script with `wire_connector.connect_to(target, false)` - passing
---     `reach_check = false` is what lets the floor conduct over any distance.
---   * one prototype per square size, so a whole 32x32 chunk of floor can be
---     covered by a single entity instead of one pole per tile.
+-- Electric concrete gets its power coverage from hidden electric poles.
+-- The poles stay off the map and out of blueprints and deconstruction orders, and the player cannot select them.
+-- They have no collision layers, so a machine can stand on the same tile.
+-- Their normal wire reach is zero, so the mod makes the copper connections itself when squares of coverage meet.
+-- There is one pole type per square size, so a full 32 × 32 chunk of concrete needs just one hidden pole.
 
 local sizes = {1, 2, 4, 8, 16, 32}
 
--- Wire attachment points. Wires are never drawn, so the offsets are irrelevant;
--- the property itself is required and needs one entry per direction.
+-- The pole needs wire attachment points, even though the game never draws its wires.
 local connection_point = {
 	wire = {
 		copper = {0, 0},
