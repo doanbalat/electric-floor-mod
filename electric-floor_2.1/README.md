@@ -35,33 +35,45 @@ disables the reach check, because the floor itself is the conductor.
 ## Why it is cheap
 
 * **Idle cost is nil.** Work is only queued when a floor tile appears or
-  disappears. The queue is drained by a single `on_nth_tick` handler which does
-  one table lookup and returns when there is nothing to do.
+  disappears. A single scheduled handler does one table lookup and returns when
+  there is nothing to do; the per-tick work handler is unregistered again as soon
+  as the queue is empty.
 * **One pole per ~900 tiles.** A 200x200 floor needs 44 poles, not 40,000.
 * **Diffed updates.** A chunk is only modified where its covering actually
   changed, so building a machine on the floor does not rebuild anything.
-* **Batched.** A few chunks are wired per pass, so a large blueprint cannot stall
-  a tick.
+* **Batched.** A chunk is rebuilt in small steps, and only a few chunk or pole
+  jobs may finish per tick, so a large blueprint cannot stall a tick.
 
 ## Reacting to changes
 
 * Placing a pole on an already conducting floor joins it **in the same tick**
   (the wire is made directly in the entity-built event).
+<<<<<<< HEAD
 * Laying or removing floor queues the affected chunk; the next update pass
   rewires it within `pass-interval` ticks (1 tick by default).
+=======
+* Laying or removing floor queues the affected chunk; the floor is rebuilt in
+  small steps, so a big edit finishes over many ticks instead of in one.
+>>>>>>> 2d8be52 (Fixes focus on de-sync for multiplayer, also remove dead codes, and some small fixes)
 * If a pole is placed faster than the game initialises it - e.g. pulling a pole
   out and putting it straight back - the immediate attempt finds nothing to
-  connect to, so the pole's chunk is queued as well and repaired by the next
-  pass. Rebuilding is diffed, so this costs nothing when nothing changed.
+  connect to, so the pole is queued as well and joined by the next ticks.
+  Rebuilding is diffed, so this costs nothing when nothing changed.
 
 ## Settings
 
-Both are runtime-global and can be changed on an existing save:
+All three are runtime-global and can be changed on an existing save:
 
 | Setting | Default | Meaning |
 |---|---|---|
+<<<<<<< HEAD
 | `pass-interval` | 1 | Ticks between update passes. Higher = cheaper. |
 | `chunks-per-pass` | 1 | Chunks wired up per pass. Lower = smoother. |
+=======
+| `pass-interval` | 1 | Ticks between checks for queued floor edits. Higher = cheaper. |
+| `jobs-per-tick` | 1 | Chunk or pole jobs that may finish in one tick. Lower = smoother. |
+| `work-per-tick` | 64 | Small network work units per tick. Lower = smoother. |
+>>>>>>> 2d8be52 (Fixes focus on de-sync for multiplayer, also remove dead codes, and some small fixes)
 
 ## Remote interface
 

@@ -16,8 +16,9 @@ local floors = require("scripts.floors")
 floors.register()
 
 remote.add_interface("electric-floor", {
-	--- Rebuilds the whole proxy network. Useful after adding the mod to an
-	--- existing save, or to force a repair if something else removed proxies.
+	--- Checks the surface for floor chunks and queues the repairs, which are
+	--- then done a little at a time. Useful after adding the mod to an existing
+	--- save, or to force a repair if something else removed proxies.
 	rescan = function()
 		floors.rescan()
 	end,

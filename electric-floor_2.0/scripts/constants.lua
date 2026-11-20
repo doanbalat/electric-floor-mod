@@ -21,7 +21,8 @@ end
 constants.POLE_COPPER = defines.wire_connector_id.pole_copper
 
 constants.SETTING_INTERVAL = "electric-floor-pass-interval"
-constants.SETTING_BUDGET = "electric-floor-chunks-per-pass"
+constants.SETTING_WORK = "electric-floor-work-per-tick"
+constants.SETTING_JOB_LIMIT = "electric-floor-jobs-per-tick"
 
 ------------------------------------------------------------------------------
 -- pole supply areas
